@@ -1,0 +1,1 @@
+# MCU_QUPA_nrF52
