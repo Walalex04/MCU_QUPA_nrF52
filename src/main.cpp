@@ -13,6 +13,10 @@
 
 
 static PROTOCOLUART_SEND dataSensor;        //store fixed in RAM
+static EncodedControlFrame rxBufferDMA;
+static PROTOCOLUART_RECIVE g_receiveData;
+static TaskHandle_t xRxTaskHandle = NULL;
+
 static float directionValues[8] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f};
 unsigned long ultimoMuestreoMs = 0;
 const unsigned long INTERVALO_MUESTREO_MS = 20; // ~50 Hz de tasa de refresco
@@ -26,6 +30,8 @@ Protocol protocol(Serial1);
 
 SemaphoreHandle_t g_sensorDataMutex;
 
+
+void ISR_UART_RxPin();
 
 
 void updateIRsensorsTask(void *pvParameters){
@@ -73,7 +79,7 @@ void sendTelemetryTask(void *pvParameters) {
 
 void printTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(1000); // Frecuencia de 1 Hz (1s)
+    const TickType_t xFrequency = pdMS_TO_TICKS(5000); // Frecuencia de 1 Hz (1s)
 
     while (1) {
         // Intentar tomar el Mutex con un timeout corto (10 ms)
@@ -117,6 +123,53 @@ void printTask(void *pvParameters) {
     }
 }
 
+void nativeRxTask(void *pvParameters)
+{
+    xRxTaskHandle = xTaskGetCurrentTaskHandle();
+    EncodedControlFrame rawFrame;
+    
+    for (;;)
+    {   
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        detachInterrupt(digitalPinToInterrupt(PIN_SERIAL1_RX));
+
+        size_t bytesRead = Serial1.readBytes(reinterpret_cast<char*>(&rawFrame), sizeof(EncodedControlFrame));
+
+        if (bytesRead == sizeof(EncodedControlFrame)) 
+        {
+            if (protocol.decodeFrame(&rawFrame, &g_receiveData, g_sensorDataMutex, pdMS_TO_TICKS(5))) 
+            {
+                Serial.print("PWM Motor A recibido: ");
+                Serial.println(g_receiveData.PWMPorcentA);
+
+                motorLeft.setVelocity(g_receiveData.PWMPorcentA); //this can be improved if only update the register
+                                                                  //and the duty point to g_receiveData directly
+                motorRigth.setVelocity(g_receiveData.PWMPorcentB);
+            } 
+            else 
+            {
+                Serial.println("Error: Trama corrupta o Header/CRC invalido");
+            }
+        } 
+        else 
+        {
+            while (Serial1.available()) Serial1.read();
+        }
+        attachInterrupt(digitalPinToInterrupt(PIN_SERIAL1_RX), ISR_UART_RxPin, FALLING);
+    }
+}
+
+void ISR_UART_RxPin() {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    if (xRxTaskHandle != NULL) {
+        vTaskNotifyGiveFromISR(xRxTaskHandle, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+
 
 
 void setup() {
@@ -132,12 +185,17 @@ void setup() {
 
   Serial.println("Initializing components");
   Serial1.begin(115200);   //UART RASP
+  pinMode(PIN_SERIAL1_RX, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_SERIAL1_RX), ISR_UART_RxPin, FALLING);
+
+
   Wire.begin();
   Wire.setClock(400000);
 
   MPsensor.beginMPU();
   Hw171.begin();
 
+  initPWMMotors();
   xTaskCreate(updateIRsensorsTask, "Task_IR", 2048,
               NULL, 2, NULL);
 
@@ -153,6 +211,8 @@ void setup() {
   xTaskCreate( sendTelemetryTask, "Task_Telemetry", 2048,
                NULL, 2, NULL);
   
+  xTaskCreate( nativeRxTask, "NativeRxTask", 2048,
+        NULL, 1, NULL);
   
   Serial.print("Components was initilized");
 }

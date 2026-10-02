@@ -28,12 +28,12 @@ struct PROTOCOLUART_SEND
 
 struct PROTOCOLUART_RECIVE
 {
-    float                   PWMPorcentA;
-    char                    directionA;
-    float                   PWMPorcentB;
+    float                   PWMPorcentA;    //0.00 - 100.00
+    char                    directionA;      // 1 0
+    float                   PWMPorcentB;        
     char                    directionB;
-    char                    StateColor;
-    char                    ONPheromones;
+    uint8_t                 StateColor[3];    // rgb leds
+    char                    ONPheromones;     // 1 0 on off
 };
 
 
@@ -51,6 +51,17 @@ struct EncodedTelemetryFrame
     uint8_t  directions;        // Bit 0: DirectionA, Bit 1: DirectionB
     uint8_t  crc;               // Checksum XOR básico
 };
+
+struct EncodedControlFrame
+{
+    uint8_t  header = 0xBB;     // Delimitador de inicio de recepción
+    uint16_t pwmA;              // 0-10000 (0.00 - 100.00 %)
+    uint16_t pwmB;              // 0-10000 (0.00 - 100.00 %)
+    uint8_t  stateColor[3];     // R, G, B
+    uint8_t  flags;             // Bit 0: directionA, Bit 1: directionB, Bit 2: ONPheromones
+    uint8_t  crc;               // Checksum XOR
+};
+
 #pragma pack(pop)
 
 
@@ -66,6 +77,8 @@ public:
 
 
     void sendData(const PROTOCOLUART_SEND* dataStruct, SemaphoreHandle_t mutex, TickType_t waitTicks = pdMS_TO_TICKS(5));
+    bool decodeFrame(const EncodedControlFrame* rawFrame, PROTOCOLUART_RECIVE* receiveStruct,
+                     SemaphoreHandle_t mutex, TickType_t waitTicks = pdMS_TO_TICKS(5));
 };
 
 

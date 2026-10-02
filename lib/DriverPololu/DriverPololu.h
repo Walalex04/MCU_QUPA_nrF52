@@ -37,7 +37,7 @@
 
 const float TICKS_POR_REVOLUCION = 909.72f;
 
-static uint16_t pwmDutyCycleBuffer[2] = {0, 0};   //memory space for two duty
+alignas(4) static uint16_t pwmDutyCycleBuffer[4] = {0, 0, 0, 0};
 
 // utils for class
 void initPWMMotors();

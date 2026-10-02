@@ -53,3 +53,35 @@ void Protocol::sendData(const PROTOCOLUART_SEND* dataStruct, SemaphoreHandle_t m
         _serial->write(reinterpret_cast<const uint8_t*>(&frame), sizeof(EncodedTelemetryFrame));
     }
 }
+
+
+bool Protocol::decodeFrame(const EncodedControlFrame* rawFrame, PROTOCOLUART_RECIVE* receiveStruct, SemaphoreHandle_t mutex, TickType_t waitTicks)
+{
+    if (rawFrame == nullptr || receiveStruct == nullptr) return false;
+
+    if (rawFrame->header != 0xBB) return false;
+
+    uint8_t computedCRC = calculateCRC(reinterpret_cast<const uint8_t*>(rawFrame), sizeof(EncodedControlFrame) - 1);
+    if (computedCRC != rawFrame->crc) return false;
+
+    PROTOCOLUART_RECIVE decodedData;
+    decodedData.PWMPorcentA = static_cast<float>(rawFrame->pwmA) / 100.0f;
+    decodedData.PWMPorcentB = static_cast<float>(rawFrame->pwmB) / 100.0f;
+
+    decodedData.StateColor[0] = rawFrame->stateColor[0];
+    decodedData.StateColor[1] = rawFrame->stateColor[1];
+    decodedData.StateColor[2] = rawFrame->stateColor[2];
+
+    decodedData.directionA   = (rawFrame->flags & (1 << 0)) ? 1 : 0;
+    decodedData.directionB   = (rawFrame->flags & (1 << 1)) ? 1 : 0;
+    decodedData.ONPheromones = (rawFrame->flags & (1 << 2)) ? 1 : 0;
+
+    if (xSemaphoreTake(mutex, waitTicks) == pdTRUE)
+    {
+        std::memcpy(receiveStruct, &decodedData, sizeof(PROTOCOLUART_RECIVE));
+        xSemaphoreGive(mutex);
+        return true;
+    }
+
+    return false;
+}
