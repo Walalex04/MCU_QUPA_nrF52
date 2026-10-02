@@ -2,14 +2,9 @@
 
 
 MPU9250::MPU9250(TwoWire &wireBus, float* addressAcc, float* addressGir, float* addressTemp):
-     _wire(&wireBus), _acc(addressAcc), _gir(addressGir), _temp(addressTemp)
-{   
+     _wire(&wireBus), _acc(addressAcc), _gir(addressGir), _temp(addressTemp) {}
 
-}
-
-MPU9250::~MPU9250()
-{
-}
+MPU9250::~MPU9250() {}
 
 
 void MPU9250::requestData(SemaphoreHandle_t sensorMutex, TickType_t maxWaitTicks) {
@@ -22,13 +17,13 @@ void MPU9250::requestData(SemaphoreHandle_t sensorMutex, TickType_t maxWaitTicks
   if (_wire->available() >= 14) {
 
     // check dataasheet
-    int16_t rawAx   = (_wire->read() << 8) | _wire->read();
-    int16_t rawAy   = (_wire->read() << 8) | _wire->read();
-    int16_t rawAz   = (_wire->read() << 8) | _wire->read();
+    int16_t rawAx = (_wire->read() << 8) | _wire->read();
+    int16_t rawAy = (_wire->read() << 8) | _wire->read();
+    int16_t rawAz = (_wire->read() << 8) | _wire->read();
     int16_t rawTemp = (_wire->read() << 8) | _wire->read();
-    int16_t rawGx   = (_wire->read() << 8) | _wire->read();
-    int16_t rawGy   = (_wire->read() << 8) | _wire->read();
-    int16_t rawGz   = (_wire->read() << 8) | _wire->read();
+    int16_t rawGx = (_wire->read() << 8) | _wire->read();
+    int16_t rawGy = (_wire->read() << 8) | _wire->read();
+    int16_t rawGz = (_wire->read() << 8) | _wire->read();
 
     if((xSemaphoreTake(sensorMutex, maxWaitTicks) == pdTRUE)){
         _acc[0] = (float)rawAx / ACCEL_SCALE;
@@ -40,6 +35,7 @@ void MPU9250::requestData(SemaphoreHandle_t sensorMutex, TickType_t maxWaitTicks
         _gir[0] = (float)rawGx / GYRO_SCALE;
         _gir[1] = (float)rawGy / GYRO_SCALE;
         _gir[2] = (float)rawGz / GYRO_SCALE;
+
         xSemaphoreGive(sensorMutex);
     }
   }

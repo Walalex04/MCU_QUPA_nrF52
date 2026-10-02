@@ -16,9 +16,9 @@ struct PROTOCOLUART_SEND
     float                   IMUGIR[3];             //MPU9250
     float                   IMUTemp;            // 0.00 50.00
     float                   DriverVelocityA;    // RPM de velocidad de un pololu 
-    char                    DirectionA;         // 1 byte (1 o 0)
+    uint8_t                 DirectionA;         // 1 byte (1 o 0)
     float                   DriverVelocityB;
-    char                    DirectionB;
+    uint8_t                 DirectionB;
 
     /**
      * TO DO: ADD COLOR SENSOR

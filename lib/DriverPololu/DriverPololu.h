@@ -25,7 +25,7 @@
 #define CHANNEL_GPIOTE_B    1 
 #define CHANNEL_PPI_B       1       
 
-#define FREQVELOCITY        4096           // must be change in the programming
+#define FREQVELOCITY        1           // must be change in the programming
 #define PULSE_PER_REV       909.72f
 
 
@@ -57,8 +57,8 @@ private:
 
 
     MOTORID         _idMotor; 
-    float           _velocity;
-    uint8_t         _direction;
+    float*          _sensVelocity;
+    uint8_t*        _sensDirection;
     Hw171Manager*   _Hw171manager;
     u_int32_t       _counterCurrentEncoder;
     u_int32_t       _couterLastEnconder;
@@ -70,10 +70,10 @@ private:
 
 public:
     
-    DriverPololu(MOTORID idMotor,  Hw171Manager &hw171manager);
+    DriverPololu(MOTORID idMotor,  Hw171Manager &hw171manager, float* addressVelocity, uint8_t* addressDirecction);
     ~DriverPololu();
 
-    float updateVelocity();
+    void updateVelocity(SemaphoreHandle_t sensorMutex, TickType_t maxWaitTicks);
 
     void setVelocity(float porcent);
 

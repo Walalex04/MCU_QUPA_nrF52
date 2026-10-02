@@ -28,7 +28,7 @@ void Protocol::sendData(const PROTOCOLUART_SEND* dataStruct, SemaphoreHandle_t m
 
         EncodedTelemetryFrame frame;
 
-        // Escalado e integración
+
         for (int i = 0; i < 8; i++)
         {
             frame.irDistance[i] = static_cast<uint16_t>(snapshot.IRDistance[i] * 100.0f);
@@ -44,15 +44,12 @@ void Protocol::sendData(const PROTOCOLUART_SEND* dataStruct, SemaphoreHandle_t m
         frame.driverVelA = static_cast<int16_t>(snapshot.DriverVelocityA * 10.0f);
         frame.driverVelB = static_cast<int16_t>(snapshot.DriverVelocityB * 10.0f);
 
-        // Bit packing de direcciones
         frame.directions = 0;
         if (snapshot.DirectionA) frame.directions |= (1 << 0);
         if (snapshot.DirectionB) frame.directions |= (1 << 1);
 
-        // Cálculo de Checksum
         frame.crc = calculateCRC(reinterpret_cast<const uint8_t*>(&frame), sizeof(EncodedTelemetryFrame) - 1);
 
-        // Envío directo por UART con EasyDMA
         _serial->write(reinterpret_cast<const uint8_t*>(&frame), sizeof(EncodedTelemetryFrame));
     }
 }

@@ -56,10 +56,10 @@ void updatePWM(float porcent, u_int8_t pin) {
 
 
 
-DriverPololu::DriverPololu(MOTORID idMotor,  Hw171Manager &hw171manager): _idMotor(idMotor), _Hw171manager(&hw171manager)
+DriverPololu::DriverPololu(MOTORID idMotor,  Hw171Manager &hw171manager, float* addressVelocity, uint8_t* addressDirecction):
+                         _idMotor(idMotor), _Hw171manager(&hw171manager), _sensVelocity(addressVelocity), _sensDirection(addressDirecction)
 {
-    _velocity = 0;
-    _direction = 0;
+
     _counterCurrentEncoder = 0;
     _couterLastEnconder = 0;
 
@@ -115,16 +115,21 @@ u_int32_t DriverPololu::currentCounter(){
 }
 
 
-float DriverPololu::updateVelocity(){
+void DriverPololu::updateVelocity(SemaphoreHandle_t sensorMutex, TickType_t maxWaitTicks){
 
     _HW_TIMER->TASKS_CAPTURE[0] = 1; 
     _counterCurrentEncoder =  _HW_TIMER->CC[0];
 
-    if(FREQVELOCITY <= 0) return 0.0f;
+    if(FREQVELOCITY <= 0) return;
 
-    _velocity = ((_counterCurrentEncoder - _couterLastEnconder)/PULSE_PER_REV)*(60.0f*FREQVELOCITY);
+    uint32_t deltaPulses = _counterCurrentEncoder - _couterLastEnconder;
     _couterLastEnconder = _counterCurrentEncoder;
-    return _velocity;
+    float calculatedRPM = ((float)deltaPulses / PULSE_PER_REV) * (60.0f * FREQVELOCITY);
+
+    if(xSemaphoreTake(sensorMutex, maxWaitTicks) == pdTRUE){
+        *_sensVelocity = calculatedRPM;
+        xSemaphoreGive(sensorMutex);
+    }
 }
 
 void DriverPololu::setVelocity(float porcent){
